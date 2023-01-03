@@ -1,0 +1,169 @@
+---
+title: "`r params$report_title`"
+author: "`r params$name`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    toc: no
+    toc_depth: 2
+    number_sections: true
+    fig_width: 6
+    fig_height: 4
+    fig_caption: true
+embed_resources: true
+params:
+  report_title: NULL
+  name: NULL
+  survey_data: NULL
+  para_list: NULL
+  draw_dt_plot: FALSE
+---
+
+\newpage
+```{=latex}
+\setcounter{tocdepth}{3}
+\tableofcontents
+```
+
+\newpage
+```{r}
+#| echo: FALSE
+#| eval: TRUE
+#| message: FALSE
+#| warning: FALSE
+library(tidyverse)
+library(officedown)
+library(readxl)
+library(writexl)
+library(knitr)
+library(english)
+library(flextable)
+library(friendlyeval)
+
+od_df <- params$survey_data
+dt_plot <- params$draw_dt_plot
+cnt <- dim(od_df)[[1]]
+```
+# Introduction
+
+This is a brief report on OD survey data. The Survey involves collecting Origin-Destination travel data from travelers to identify the travel patterns in the study area and the reasons for those patterns.  
+  
+In this survey, a total of `r cnt` samples were collected. Here is a sample of the collected OD data:
+
+```{r echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE, results='asis', fig.align='center'}
+od_df %>% head() %>% kable(caption = "Sample OD Data")
+```
+
+## Major OD Pairs
+```{r echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE, results='asis', fig.align='center'}
+major_od_pairs <- od_df %>% 
+  mutate(od_pair = paste(origin, destination, sep = "-")) %>% 
+  count(od_pair, sort = TRUE) %>% 
+  mutate(pct = round((n/sum(n))*100,2)) %>% 
+  head(10)
+first_od_pair <- major_od_pairs$od_pair[1]
+first_od_pair_pct <- major_od_pairs$pct[1]
+second_od_pair <- major_od_pairs$od_pair[2]
+second_od_pair_pct <- major_od_pairs$pct[2]
+
+cat(paste0("Top two OD pairs in the study area are ",first_od_pair," and ",second_od_pair,". A total of ",first_od_pair_pct,"% are hapenning between ",first_od_pair," followed by ",second_od_pair_pct,"% between ",second_od_pair,"."))
+print(
+  major_od_pairs %>% 
+    kable(col.names = c("OD Pair", "Trips", "Percentage(%)"),
+          caption = "Major OD pairs of the study area")
+  )
+```
+
+\newpage
+```{r fig.cap="Distance vs Time",echo=FALSE,eval=dt_plot,message=FALSE,warning=FALSE,results='asis', fig.align='center'}
+dt_reg_model <- lm(time~distance, data = od_df)
+r_squared <- round(summary(dt_reg_model)$r.squared,2)
+
+cat("\n")
+cat("## Distance vs Time Plot\n")
+cat(paste0("Regression model between Distance and Time has an R^2 value of ",r_squared,".\n"))
+cat("\n")
+print(
+  od_df %>% 
+  ggplot(aes(x = distance, y = time))+
+  geom_point()+
+  theme_minimal()+
+  labs(x = "Distance (kms)", y = "Time (hrs)")+
+  theme(
+    panel.border = element_rect(fill = NA)
+  )
+)
+cat("\n\n")
+cat("\\newpage\n")
+cat("\n")
+```
+
+
+```{r echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+var_cnt <- length(params$para_list)
+var_cnt <- as.character(english(var_cnt))
+
+code <- TRUE
+if(var_cnt == "zero"){
+  code <- FALSE
+}
+```
+
+<!-- # Summary Tables and Plots -->
+
+<!-- This section contains summary Tables and Plots for the given `r var_cnt` variables. -->
+\newpage
+```{r fig.cap=paste0("Variation of ",str_to_title(params$para_list)), echo=FALSE, eval=code, message=FALSE, warning=FALSE, results='asis'}
+cat("\n")
+cat("# Summary Tables and Plots\n")
+cat(paste0("This section contains summary Tables and Plots for the given ",var_cnt," variables.\n"))
+cat("\n")
+
+count_var <- function(df, var_name){
+  return(
+    df %>% count(.data[[var_name]]) %>% 
+      mutate(pct = round((n/sum(n))*100,2)) %>%
+      rename(cnt = n)
+  )
+}
+
+
+plot_var <- function(summary_df, name){
+  color_list <- c("#1A0000", "#0A2647", "#EB6440", "#FF5D5D", "#495371", "#68B984")
+  clr <- sample(color_list, size = 1)
+  return(
+    summary_df %>%
+      ggplot(aes(x = .data[[name]], y = pct))+
+      geom_col(fill = clr, color = "black")+
+      theme_minimal()+
+      labs(x = str_to_title(name),
+           y = "Percentage(%)")+
+      theme(
+        panel.border = element_rect(fill = NA)
+      )
+  )
+}
+
+
+for(p in params$para_list){
+  summary_df <- count_var(od_df, p)
+  top_cat <- summary_df[1,1]
+  top_pct <- summary_df[1,3]
+  second_cat <- summary_df[2,1]
+  second_pct <- summary_df[2,3]
+  
+  cat("\n") 
+  cat("##", str_to_title(p), "\n")
+  cat(paste0("A total of ",top_pct,"% belong to ",top_cat," followed by ",second_cat," consisting of ",second_pct,"% of total samples."))
+  cat("\n")
+  
+  print(summary_df %>% 
+          kable(caption = paste0("Classification of samples w.r.t ",str_to_title(p)),
+                col.names = c(str_to_title(p), "No.of Samples", "Percentage(%)"))
+        )
+  print(plot_var(summary_df, p))
+  cat("\n\n")
+  cat("\\newpage\n")
+}
+```
+
