@@ -4,6 +4,6 @@ This repository contains all the scrips and sample data used to develope OD Summ
 
 With this application you can plugin your OD Survey data and quicly extract OD matrix and a brief PDF report based on the parameters you choose.
 
-It is still work in progress. Since edge cases were not explored properly it may through errors if you mispell column names or sheet names.
+It is still work in progress. Since edge cases were not explored properly it may through errors if you misspell column names or sheet names.
 
 For any queries or suggestions you can reach out to me on Linkedin [here](https://www.linkedin.com/in/pamidiashok/) or at ashokpamidi07@gmail.com
